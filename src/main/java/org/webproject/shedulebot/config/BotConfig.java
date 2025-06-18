@@ -8,14 +8,11 @@ import org.webproject.shedulebot.controller.BotController;
 
 @Configuration
 public class BotConfig {
-    @Value("${telegram.bot.username}")
-    private String username;
-
-    @Value("${telegram.bot.token}")
-    private String token;
 
     @Bean
-    public TelegramLongPollingBot telegramBot() {
+    public TelegramLongPollingBot telegramBot(
+            @Value("${telegram.bot.username}") String username,
+            @Value("${telegram.bot.token}") String token) {
         return new BotController(username, token);
     }
 }
