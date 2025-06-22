@@ -7,7 +7,8 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.webproject.shedulebot.dto.Task;
+import org.webproject.shedulebot.dto.TaskDTO;
+import org.webproject.shedulebot.repository.TaskRepository;
 import org.webproject.shedulebot.util.CallbackCommands;
 import org.webproject.shedulebot.util.CustomDateTimeFormatter;
 
@@ -23,7 +24,7 @@ public class MessageService {
         NONE, WAITING_ID, WAITING_DATA, WAITING_DELETE_ID,
         WAITING_TASK_DATE, WAITING_DATE_DESCRIPTION
     }
-
+    private TaskRepository taskRepository;
     private final Map<Long, UpdateState> userStates = new ConcurrentHashMap<>();
     private final Map<Long, Long> taskIdToUpdate = new ConcurrentHashMap<>();
     private final TelegramLongPollingBot bot;
@@ -31,11 +32,11 @@ public class MessageService {
     private final CustomDateTimeFormatter customDateTimeFormatter;
     private final Map<Long, Integer> lastMessageIds = new ConcurrentHashMap<>();
     private final Map<Long,LocalDateTime> tempTaskDates = new ConcurrentHashMap<>();
-    
-    public MessageService(TelegramLongPollingBot bot) {
+
+    public MessageService(TelegramLongPollingBot bot, TaskService taskService, CustomDateTimeFormatter customDateTimeFormatter) {
         this.bot = bot;
-        this.taskService = new TaskService();
-        this.customDateTimeFormatter = new CustomDateTimeFormatter();
+        this.taskService = taskService;
+        this.customDateTimeFormatter = customDateTimeFormatter;
     }
 
     public void handleCommand(long chatId, String text) {
@@ -132,20 +133,20 @@ public class MessageService {
         }
     }
     public void sendAllTasks(long chatId) {
-        List<Task> tasks = taskService.getUserTasks(chatId);
-        if (tasks.isEmpty()) {
+        List<TaskDTO> taskDTOS = taskService.getUserTasks(chatId);
+        if (taskDTOS.isEmpty()) {
             sendMessage(chatId, "У вас пока нет задач.", MENU_MAIN);
             return;
         }
 
         StringBuilder sb = new StringBuilder("Ваши задачи:\n\n");
-        tasks.forEach(task -> sb.append(task.toString()).append("\n\n"));
+        taskDTOS.forEach(taskDTO -> sb.append(taskDTO.toString()).append("\n\n"));
         sendMessage(chatId, sb.toString(), CallbackCommands.MENU_MAIN);
     }
 
     public void startUpdateTask(long chatId) {
-        List<Task> tasks = taskService.getUserTasks(chatId);
-        if (tasks.isEmpty()) {
+        List<TaskDTO> taskDTOS = taskService.getUserTasks(chatId);
+        if (taskDTOS.isEmpty()) {
             sendMessage(chatId, "У вас пока нет задач для обновления.",MENU_MAIN);
             return;
         }
@@ -157,7 +158,7 @@ public class MessageService {
     private void handleTaskIdInput(long chatId, String text) {
         try {
             long taskId = Long.parseLong(text);
-            Optional<Task> task = taskService.findTaskById(chatId, taskId);
+            Optional<TaskDTO> task = taskService.findTaskById(chatId, taskId);
 
             if (task.isPresent()) {
                 taskIdToUpdate.put(chatId, taskId);
@@ -191,8 +192,8 @@ public class MessageService {
             boolean updated = taskService.updateTask(chatId, taskId, newDateTime, description);
 
             if (updated) {
-                Optional<Task> updatedTask = taskService.findTaskById(chatId, taskId);
-                String taskInfo = updatedTask.map(Task::toString).orElse("Информация о задаче недоступна");
+                Optional<TaskDTO> updatedTask = taskService.findTaskById(chatId, taskId);
+                String taskInfo = updatedTask.map(TaskDTO::toString).orElse("Информация о задаче недоступна");
                 sendMessage(chatId, "Задача ID " + taskId + " успешно обновлена!\n\n" + taskInfo, CallbackCommands.MENU_MAIN);
             } else {
                 sendMessage(chatId, "Не удалось обновить задачу с ID " + taskId, BACK_UPDATE);
@@ -208,8 +209,8 @@ public class MessageService {
     }
 
     public void startDeleteTask(long chatId) {
-        List<Task> tasks = taskService.getUserTasks(chatId);
-        if (tasks.isEmpty()) {
+        List<TaskDTO> taskDTOS = taskService.getUserTasks(chatId);
+        if (taskDTOS.isEmpty()) {
             sendMessage(chatId, "У вас пока нет задач для удаления.",MENU_MAIN);
             return;
         }
@@ -293,8 +294,8 @@ public class MessageService {
             return;
         }
 
-        Task task = taskService.createTask(chatId,dateTime,text);
-        sendMessage(chatId,task.saveTaskEvent(),MENU_MAIN);
+        TaskDTO taskDTO = taskService.createTask(chatId,dateTime,text);
+        sendMessage(chatId, taskDTO.saveTaskEvent(),MENU_MAIN);
         tempTaskDates.remove(chatId);
         userStates.put(chatId,UpdateState.NONE);
     }
@@ -316,9 +317,9 @@ public class MessageService {
     }
 
     private String getAllTasksAsString(long chatId) {
-        List<Task> tasks = taskService.getUserTasks(chatId);
+        List<TaskDTO> taskDTOS = taskService.getUserTasks(chatId);
         StringBuilder sb = new StringBuilder();
-        tasks.forEach(task -> sb.append(task.toString()).append("\n"));
+        taskDTOS.forEach(taskDTO -> sb.append(taskDTO.toString()).append("\n"));
         return sb.toString();
     }
 

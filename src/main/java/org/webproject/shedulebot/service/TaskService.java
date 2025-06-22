@@ -1,58 +1,76 @@
 package org.webproject.shedulebot.service;
 
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import org.webproject.shedulebot.dto.Task;
-
+import org.webproject.shedulebot.dto.TaskDTO;
+import org.webproject.shedulebot.entity.Task;
+import org.webproject.shedulebot.repository.TaskRepository;
+import org.webproject.shedulebot.util.CustomDateTimeFormatter;
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class TaskService {
-    private final Map<Long, List<Task>> userTasks = new ConcurrentHashMap<>();
-    private final AtomicLong taskIdGenerator = new AtomicLong(0);
+    private final TaskRepository taskRepository;
+    private static final CustomDateTimeFormatter formatter = new CustomDateTimeFormatter();
 
-    public List<Task> getUserTasks(long chatId) {
-        return userTasks.getOrDefault(chatId, Collections.emptyList());
+    public TaskService(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
     }
 
-    public Task createTask(long chatId, LocalDateTime dateTime, String description) {
+    public List<TaskDTO> getUserTasks(long chatId) {
+        return taskRepository.findByChatId(chatId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public TaskDTO createTask(long chatId, LocalDateTime dateTime, String description) {
+        Long maxTaskId = taskRepository.findMaxTaskIdByChatId(chatId)
+                .orElse(0L);
+
         Task task = new Task();
-        task.setTaskId(taskIdGenerator.incrementAndGet());
+        task.setChatId(chatId);
+        task.setTaskId(maxTaskId + 1);
         task.setDateTime(dateTime);
         task.setDescription(description);
 
-        userTasks.computeIfAbsent(chatId, k -> new ArrayList<>()).add(task);
-        return task;
+        Task savedTask = taskRepository.save(task);
+        return convertToDto(savedTask);
     }
 
     public boolean updateTask(long chatId, long taskId, LocalDateTime newDateTime, String newDescription) {
-        List<Task> tasks = userTasks.get(chatId);
-        if (tasks == null) return false;
-
-        return findTaskById(chatId,taskId)
-                .map(task -> {
-                    task.setDateTime(newDateTime);
-                    task.setDescription(newDescription);
-                    return true;
-                })
-                .orElse(false);
+        Optional<Task> taskOpt = taskRepository.findByIdAndChatId(taskId, chatId);
+        if (taskOpt.isPresent()) {
+            Task task = taskOpt.get();
+            task.setDateTime(newDateTime);
+            task.setDescription(newDescription);
+            taskRepository.save(task);
+            return true;
+        }
+        return false;
     }
 
     public boolean deleteTask(long chatId, long taskId) {
-        List<Task> tasks = userTasks.get(chatId);
-        if (tasks == null) return false;
-
-        return tasks.removeIf(t -> t.getTaskId() == taskId);
+        if (taskRepository.existsByIdAndChatId(taskId, chatId)) {
+            taskRepository.deleteByIdAndChatId(taskId, chatId);
+            return true;
+        }
+        return false;
     }
 
-    public Optional<Task> findTaskById(long chatId, long taskId) {
-        List<Task> tasks = userTasks.get(chatId);
-        if (tasks == null) return Optional.empty();
+    public Optional<TaskDTO> findTaskById(long chatId, long taskId) {
+        return taskRepository.findByIdAndChatId(taskId, chatId)
+                .map(this::convertToDto);
+    }
 
-        return tasks.stream()
-                .filter(t -> t.getTaskId() == taskId)
-                .findFirst();
+    private TaskDTO convertToDto(Task task) {
+        TaskDTO dto = new TaskDTO();
+        dto.setTaskId(task.getTaskId());
+        dto.setDateTime(task.getDateTime());
+        dto.setDescription(task.getDescription());
+        return dto;
     }
 }

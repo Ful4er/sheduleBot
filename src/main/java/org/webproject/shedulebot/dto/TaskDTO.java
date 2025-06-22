@@ -6,7 +6,7 @@ import org.webproject.shedulebot.util.CustomDateTimeFormatter;
 import java.time.LocalDateTime;
 
 @Data
-public class Task {
+public class TaskDTO {
     private long taskId;
     private LocalDateTime dateTime;
     private String description;

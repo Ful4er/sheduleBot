@@ -4,13 +4,15 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.webproject.shedulebot.service.MessageService;
+import org.webproject.shedulebot.service.TaskService;
 import org.webproject.shedulebot.util.CallbackCommands;
+import org.webproject.shedulebot.util.CustomDateTimeFormatter;
 
 public class CommandHandler {
     private final MessageService messageService;
 
-    public CommandHandler(TelegramLongPollingBot bot) {
-        this.messageService = new MessageService(bot);
+    public CommandHandler(TelegramLongPollingBot bot, TaskService taskService, CustomDateTimeFormatter customDateTimeFormatter) {
+        this.messageService = new MessageService(bot, taskService, customDateTimeFormatter);
     }
 
     public void handleUpdate(Update update) {
