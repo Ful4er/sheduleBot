@@ -1,4 +1,4 @@
-package org.webproject.shedulebot.entity;
+package org.webproject.schedulebot.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -29,4 +29,6 @@ public class Task{
     @Column(name = "created_at",nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "notified")
+    private Boolean notified = false;
 }

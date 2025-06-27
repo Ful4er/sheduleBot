@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.webproject</groupId>
-    <artifactId>sheduleBot</artifactId>
+    <artifactId>scheduleBot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>sheduleBot</name>
     <description>sheduleBot</description>

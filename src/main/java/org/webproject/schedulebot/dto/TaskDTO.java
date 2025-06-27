@@ -1,7 +1,7 @@
-package org.webproject.shedulebot.dto;
+package org.webproject.schedulebot.dto;
 
 import lombok.Data;
-import org.webproject.shedulebot.util.CustomDateTimeFormatter;
+import org.webproject.schedulebot.util.formatter.CustomDateTimeFormatter;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +10,7 @@ public class TaskDTO {
     private long taskId;
     private LocalDateTime dateTime;
     private String description;
-    private boolean withNotification;
+    private Boolean notified;
 
     private static final CustomDateTimeFormatter formatter = new CustomDateTimeFormatter();
 

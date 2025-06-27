@@ -1,21 +1,21 @@
-package org.webproject.shedulebot.service;
+package org.webproject.schedulebot.service;
 
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.webproject.shedulebot.dto.TaskDTO;
-import org.webproject.shedulebot.entity.Task;
-import org.webproject.shedulebot.repository.TaskRepository;
-import org.webproject.shedulebot.util.CustomDateTimeFormatter;
+import org.webproject.schedulebot.dto.TaskDTO;
+import org.webproject.schedulebot.entity.Task;
+import org.webproject.schedulebot.repository.TaskRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional
 public class TaskService {
     private final TaskRepository taskRepository;
-    private static final CustomDateTimeFormatter formatter = new CustomDateTimeFormatter();
 
     public TaskService(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
@@ -42,11 +42,12 @@ public class TaskService {
     }
 
     public boolean updateTask(long chatId, long taskId, LocalDateTime newDateTime, String newDescription) {
-        Optional<Task> taskOpt = taskRepository.findByIdAndChatId(taskId, chatId);
+        Optional<Task> taskOpt = taskRepository.findByTaskIdAndChatId(taskId, chatId);
         if (taskOpt.isPresent()) {
             Task task = taskOpt.get();
             task.setDateTime(newDateTime);
             task.setDescription(newDescription);
+            task.setNotified(false);
             taskRepository.save(task);
             return true;
         }
@@ -54,15 +55,15 @@ public class TaskService {
     }
 
     public boolean deleteTask(long chatId, long taskId) {
-        if (taskRepository.existsByIdAndChatId(taskId, chatId)) {
-            taskRepository.deleteByIdAndChatId(taskId, chatId);
+        if (taskRepository.existsByTaskIdAndChatId(taskId, chatId)) {
+            taskRepository.deleteByTaskIdAndChatId(taskId, chatId);
             return true;
         }
         return false;
     }
 
     public Optional<TaskDTO> findTaskById(long chatId, long taskId) {
-        return taskRepository.findByIdAndChatId(taskId, chatId)
+        return taskRepository.findByTaskIdAndChatId(taskId, chatId)
                 .map(this::convertToDto);
     }
 

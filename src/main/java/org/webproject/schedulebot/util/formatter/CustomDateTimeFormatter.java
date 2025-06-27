@@ -1,4 +1,4 @@
-package org.webproject.shedulebot.util;
+package org.webproject.schedulebot.util.formatter;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
