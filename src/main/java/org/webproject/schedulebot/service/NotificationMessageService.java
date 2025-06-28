@@ -34,6 +34,7 @@ public class NotificationMessageService {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
         message.setText(messageText);
+        message.setParseMode("HTML");
 
         InlineKeyboardMarkup markup = KeyboardMarkupBuilder.create()
                 .addRow(

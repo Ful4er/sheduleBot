@@ -29,12 +29,10 @@ public class CommandHandler {
         } else if (update.hasMessage() && update.getMessage().hasText()) {
             String text = update.getMessage().getText().trim();
             long chatId = update.getMessage().getChatId();
+            int incomingId = update.getMessage().getMessageId();
+            messageSenderService.trackIncomingMessage(chatId, incomingId);
             messageService.handleCommand(chatId, text);
         }
-    }
-
-    public void handleUpdate(long chatId, String command) {
-        messageService.handleCommand(chatId, command);
     }
 
     private void handleCallbackQuery(CallbackQuery callbackQuery) {
@@ -44,7 +42,7 @@ public class CommandHandler {
         messageSenderService.deleteMessage(chatId, messageId);
 
         switch (callbackData) {
-            case CallbackCommands.MENU_MAIN -> messageService.mainMenu(chatId);
+            case CallbackCommands.MENU_MAIN -> messageService.showMainMenu(chatId);
             case CallbackCommands.MENU_VIEW_TASKS -> messageService.sendAllTasks(chatId);
             case CallbackCommands.MENU_UPDATE_TASK -> messageService.startUpdateTask(chatId);
             case CallbackCommands.MENU_DELETE_TASK -> messageService.startDeleteTask(chatId);
@@ -58,9 +56,6 @@ public class CommandHandler {
                 } else if (callbackData.startsWith(CallbackCommands.COMPLETE_PREFIX)) {
                     long taskId = Long.parseLong(callbackData.substring(CallbackCommands.COMPLETE_PREFIX.length()));
                     messageService.completeTask(chatId, taskId);
-                } else if (callbackData.startsWith("back_")) {
-                    String command = callbackData.substring(5);
-                    handleUpdate(chatId, command);
                 }
             }
         }

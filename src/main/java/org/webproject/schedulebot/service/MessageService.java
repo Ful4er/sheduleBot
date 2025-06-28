@@ -37,6 +37,7 @@ public class MessageService {
 
     public void handleCommand(long chatId, String text) {
         try {
+            messageSender.deleteAllIncomingMessages(chatId);
             UpdateState currentState = userStatesService.getUserState(chatId);
 
             switch (currentState) {
@@ -54,9 +55,10 @@ public class MessageService {
     }
 
     private void processCommand(long chatId, String text) {
-        if ("/start".equalsIgnoreCase(text) || "/menu".equalsIgnoreCase(text)) {
-            messageSender.deleteLastTrackedMessage(chatId);
-            mainMenu(chatId);
+        if ("/start".equalsIgnoreCase(text)) {
+            handleStartCommand(chatId);
+        } else if ("/menu".equalsIgnoreCase(text)) {
+            handleMenuCommand(chatId);
         } else if ("/alltask".equalsIgnoreCase(text)) {
             sendAllTasks(chatId);
         } else if ("/help".equalsIgnoreCase(text)) {
@@ -70,21 +72,51 @@ public class MessageService {
         }
     }
 
-    public void mainMenu(long chatId) {
+    public void showMainMenu(long chatId) {
         try {
             messageSender.deleteLastTrackedMessage(chatId);
-            Message message = messageSender.sendMessage(
+
+            Message menuMessage = messageSender.sendMessage(
                     chatId,
                     MessageTexts.MAIN_MENU,
                     KeyboardMarkupBuilder.createMainMenuMarkup()
             );
-            messageSender.trackLastMessage(chatId, message.getMessageId());
+            messageSender.trackLastMessage(chatId, menuMessage.getMessageId());
         } catch (Exception e) {
             log.error("Error showing main menu", e);
             sendMessage(chatId, MessageTexts.MENU_ERROR);
         }
     }
 
+    public void handleStartCommand(long chatId) {
+        try {
+            messageSender.deleteAllIncomingMessages(chatId);
+
+            if (!messageSender.hasWelcomeMessage(chatId)) {
+                Message welcomeMsg = messageSender.sendMessage(
+                        chatId,
+                        MessageTexts.WELCOME_MESSAGE,
+                        null // без клавиатуры
+                );
+                messageSender.setWelcomeMessage(chatId, welcomeMsg.getMessageId());
+            }
+
+            showMainMenu(chatId);
+        } catch (Exception e) {
+            log.error("Error handling start command", e);
+            sendMessage(chatId, MessageTexts.ERROR_OCCURRED + e.getMessage());
+        }
+    }
+
+    public void handleMenuCommand(long chatId) {
+        try {
+            messageSender.deleteAllIncomingMessages(chatId);
+            showMainMenu(chatId);
+        } catch (Exception e) {
+            log.error("Error handling menu command", e);
+            sendMessage(chatId, MessageTexts.ERROR_OCCURRED + e.getMessage());
+        }
+    }
     public void sendAllTasks(long chatId) {
         List<TaskDTO> taskDTOS = taskService.getUserTasks(chatId);
         if (taskDTOS.isEmpty()) {
@@ -115,14 +147,14 @@ public class MessageService {
 
             if (task.isPresent()) {
                 userStatesService.setTaskIdToUpdate(chatId, taskId);
-                sendMessage(chatId, MessageTexts.TASK_UPDATE_INSTRUCTIONS, BACK_UPDATE);
+                sendMessage(chatId, MessageTexts.TASK_UPDATE_INSTRUCTIONS, MENU_UPDATE_TASK);
                 userStatesService.setUserState(chatId, UpdateState.WAITING_DATA);
             } else {
-                sendMessage(chatId, String.format(MessageTexts.TASK_NOT_FOUND, taskId), BACK_UPDATE);
+                sendMessage(chatId, String.format(MessageTexts.TASK_NOT_FOUND, taskId), MENU_UPDATE_TASK);
                 userStatesService.setUserState(chatId, UpdateState.NONE);
             }
         } catch (NumberFormatException e) {
-            sendMessage(chatId, MessageTexts.INVALID_ID_FORMAT, MENU_MAIN);
+            sendMessage(chatId, MessageTexts.INVALID_ID_FORMAT, MENU_UPDATE_TASK);
         }
     }
 
@@ -132,7 +164,7 @@ public class MessageService {
             String[] parts = text.split("\\s+", 3);
 
             if (parts.length < 3) {
-                sendMessage(chatId, MessageTexts.INVALID_TASK_FORMAT, BACK_UPDATE);
+                sendMessage(chatId, MessageTexts.INVALID_TASK_FORMAT, MENU_UPDATE_TASK);
                 return;
             }
 
@@ -146,12 +178,12 @@ public class MessageService {
                 String taskInfo = updatedTask.map(TaskDTO::toString).orElse(MessageTexts.TASK_INFO_UNAVAILABLE);
                 sendMessage(chatId, String.format(MessageTexts.TASK_UPDATED, taskId, taskInfo), MENU_MAIN);
             } else {
-                sendMessage(chatId, String.format(MessageTexts.UPDATE_FAILED, taskId), BACK_UPDATE);
+                sendMessage(chatId, String.format(MessageTexts.UPDATE_FAILED, taskId), MENU_UPDATE_TASK);
             }
         } catch (DateTimeParseException e) {
-            sendMessage(chatId, MessageTexts.INVALID_DATE_TIME_FORMAT, BACK_UPDATE);
+            sendMessage(chatId, MessageTexts.INVALID_DATE_TIME_FORMAT, MENU_UPDATE_TASK);
         } catch (Exception e) {
-            sendMessage(chatId, MessageTexts.UPDATE_ERROR + e.getMessage(), BACK_UPDATE);
+            sendMessage(chatId, MessageTexts.UPDATE_ERROR + e.getMessage(), MENU_UPDATE_TASK);
         } finally {
             userStatesService.setUserState(chatId, UpdateState.NONE);
             userStatesService.clearTaskIdToUpdate(chatId);
@@ -177,10 +209,10 @@ public class MessageService {
             if (deleted) {
                 sendMessage(chatId, MessageTexts.TASK_DELETED, MENU_MAIN);
             } else {
-                sendMessage(chatId, String.format(MessageTexts.TASK_NOT_FOUND, taskId), BACK_DELETE);
+                sendMessage(chatId, String.format(MessageTexts.TASK_NOT_FOUND, taskId), MENU_DELETE_TASK);
             }
         } catch (NumberFormatException e) {
-            sendMessage(chatId, MessageTexts.INVALID_ID_FORMAT, BACK_DELETE);
+            sendMessage(chatId, MessageTexts.INVALID_ID_FORMAT, MENU_DELETE_TASK);
         } finally {
             userStatesService.clearAllForUser(chatId);
         }
@@ -257,7 +289,11 @@ public class MessageService {
 
     public void sendMessage(long chatId, String text, String backCommand) {
         try {
-            messageSender.deleteLastTrackedMessage(chatId);
+            int lastMessageId = messageSender.getLastMessageId(chatId);
+            if (!messageSender.isWelcomeMessage(chatId, lastMessageId)) {
+                messageSender.deleteLastTrackedMessage(chatId);
+            }
+
             Message message = messageSender.sendMessage(
                     chatId,
                     text,
