@@ -17,9 +17,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: "no"
 
-  shedulebot:
+  schedulebot:
     build: .
     depends_on:
       postgres:
@@ -32,7 +32,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: true
-    restart: unless-stopped
+    restart: "no"
     volumes:
       - ./logs:/app/logs
     ports:

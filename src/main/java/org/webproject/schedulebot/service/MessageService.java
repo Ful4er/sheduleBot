@@ -96,7 +96,7 @@ public class MessageService {
                 Message welcomeMsg = messageSender.sendMessage(
                         chatId,
                         MessageTexts.WELCOME_MESSAGE,
-                        null // без клавиатуры
+                        null
                 );
                 messageSender.setWelcomeMessage(chatId, welcomeMsg.getMessageId());
             }
